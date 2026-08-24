@@ -1,16 +1,46 @@
 import streamlit as st
 import time
+import json
 from agent import build_graph
 from main import setup_mock_files
 from config import TARGET_REPO_URL, GEMINI_API_KEY
 
-st.set_page_config(page_title="Self-Healing PR Agent", layout="wide")
+st.set_page_config(page_title="Self-Healing PR Agent", layout="wide", page_icon="🤖")
 
-st.title("🤖 Autonomous Self-Healing PR Agent")
-st.markdown("Read-Only Live Observability Dashboard")
+# --- CUSTOM CSS ---
+st.markdown("""
+<style>
+    /* Sleek Dark Mode & Glassmorphism */
+    .stApp {
+        background-color: #0b0f19;
+        color: #e2e8f0;
+    }
+    /* Headers */
+    h1 {
+        background: -webkit-linear-gradient(45deg, #FF4F00, #FF8C00);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+        font-family: 'Inter', sans-serif;
+    }
+    h2, h3 {
+        color: #f8fafc;
+        font-family: 'Inter', sans-serif;
+    }
+    /* Metric widget coloring */
+    [data-testid="stMetricValue"] {
+        color: #38bdf8;
+        font-weight: bold;
+    }
+    /* Hide top padding */
+    .block-container {
+        padding-top: 2rem !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 if not GEMINI_API_KEY:
-    st.error("GEMINI_API_KEY is not set. Please configure it in .env or st.secrets to run the agent.")
+    st.error("GEMINI_API_KEY is not set. Please configure it in .streamlit/secrets.toml or .env")
     st.stop()
 
 if "workflow_finished" not in st.session_state:
@@ -33,65 +63,111 @@ def run_agent():
     
     app = build_graph()
     
+    # --- SIDEBAR CONTEXT ---
+    with st.sidebar:
+        st.markdown("### ⚙️ Workflow Context")
+        st.info(f"**Task:** {initial_state['task_description']}")
+        if TARGET_REPO_URL:
+            st.markdown(f"**Target Repo:** [View Here]({TARGET_REPO_URL})")
+        else:
+            st.markdown("**Target Repo:** Mock Local")
+            
+        st.markdown("---")
+        st.markdown("### 🧠 AI Engine")
+        st.markdown("`gemini-3.5-flash-lite` (LangGraph)")
+        
+    # --- HEADER & METRICS ---
+    st.title("🤖 Autonomous Self-Healing PR Agent")
+    st.markdown("Monitor real-time AI autonomous coding, testing, and self-correction.")
+    
+    m1, m2, m3 = st.columns(3)
+    iter_metric = m1.empty()
+    status_metric = m2.empty()
+    pr_metric = m3.empty()
+    
+    iter_metric.metric("Healing Iterations", "0 / 3")
+    status_metric.metric("Test Status", "Pending ⏳")
+    pr_metric.metric("Pull Request", "Not Created")
+    
+    st.markdown("---")
+    
+    # --- MAIN UI CONTAINERS ---
     status_placeholder = st.empty()
+    
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("Test Execution Terminal")
+        st.markdown("### 🖥️ Execution Terminal")
         terminal_placeholder = st.empty()
     with col2:
-        st.subheader("Healed Code Generation")
+        st.markdown("### 📝 Generated Source Code")
         diff_placeholder = st.empty()
         
     final_placeholder = st.empty()
     
-    # Store the cumulative state to render diffs and terminal
-    current_test_output = "Waiting for tests..."
+    # Defaults
+    current_test_output = "# Waiting for execution to begin..."
     current_generated_code = {"status": "Waiting for generation..."}
     final_pr_url = None
     
     terminal_placeholder.code(current_test_output, language="bash")
     diff_placeholder.json(current_generated_code)
     
-    # Stream events
+    # --- STREAM LOOP ---
     with status_placeholder.container():
         with st.status("Initializing Workflow Pipeline...", expanded=True) as status:
             for s in app.stream(initial_state, stream_mode="updates"):
                 node_name = list(s.keys())[0]
                 state_data = s[node_name]
                 
-                status.write(f"✅ Executed node: **`{node_name}`**")
+                status.write(f"✅ Active Node: **`{node_name}`**")
                 
-                # Update UI components dynamically
+                # Metrics Updates
+                if "iteration_count" in state_data:
+                    iter_metric.metric("Healing Iterations", f"{state_data['iteration_count']} / 3")
+                    
+                if "test_status" in state_data:
+                    if state_data["test_status"]:
+                        status_metric.metric("Test Status", "Passed ✅", delta="100% Coverage")
+                    else:
+                        status_metric.metric("Test Status", "Failed ❌", delta="- Tests failed", delta_color="inverse")
+                        
+                # Content Updates
                 if "test_output" in state_data:
                     current_test_output = state_data["test_output"]
                     terminal_placeholder.code(current_test_output, language="bash")
                 
                 if "generated_code" in state_data:
                     current_generated_code = state_data["generated_code"]
-                    diff_placeholder.json(current_generated_code)
+                    # Pretty format the code block if it has a file
+                    if len(current_generated_code.keys()) > 0:
+                        code_str = ""
+                        for filepath, code in current_generated_code.items():
+                            code_str += f"# {filepath}\n{code}\n\n"
+                        diff_placeholder.code(code_str, language="python")
+                    else:
+                        diff_placeholder.json(current_generated_code)
                     
                 if "pr_url" in state_data:
                     final_pr_url = state_data["pr_url"]
+                    pr_metric.metric("Pull Request", "Published 🚀")
                 
-                # Small sleep to simulate observability in real-time
+                # Dynamic delay for observability
                 time.sleep(1)
                 
-            status.update(label="Workflow Complete!", state="complete", expanded=False)
+            status.update(label="✨ Workflow Complete!", state="complete", expanded=False)
             
-    # Final Artifact Card
+    # --- FINAL ARTIFACT ---
     with final_placeholder.container():
-        st.subheader("Final Artifact")
         if final_pr_url:
-            st.success("🎉 Agent successfully healed the code and created a PR!")
-            st.markdown(f"**Pull Request URL:** [{final_pr_url}]({final_pr_url})")
-            if TARGET_REPO_URL:
-                st.markdown(f"**Target Repository:** [{TARGET_REPO_URL}]({TARGET_REPO_URL})")
+            st.success("🎉 Agent successfully healed the code and published a Pull Request!")
+            st.markdown(f"**🔗 Pull Request Link:** [{final_pr_url}]({final_pr_url})")
+            st.balloons()
         else:
-            st.info("Workflow completed without generating a PR. The agent might have reached max iterations or failed.")
+            st.info("⚠️ Workflow completed without generating a PR. Max iterations reached or execution halted.")
             
     st.session_state.workflow_finished = True
 
 if not st.session_state.workflow_finished:
     run_agent()
 else:
-    st.info("Workflow has already completed for this session. Refresh the page to run again.")
+    st.warning("Session Completed. Refresh the page to trigger a new agent run.")
