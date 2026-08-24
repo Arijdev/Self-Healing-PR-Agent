@@ -87,6 +87,18 @@ Launch the Streamlit app to monitor the LangGraph execution states visually.
 streamlit run app.py
 ```
 
+### 4. Streamlit Cloud Deployment
+
+If you are deploying this dashboard to **Streamlit Community Cloud**, your `.env` file will not be pushed to GitHub (for security). Instead, you must configure your secrets in the Streamlit Cloud Dashboard:
+
+1. Go to your app's dashboard on Streamlit Cloud.
+2. Click **Manage App** -> **Settings** -> **Secrets**.
+3. Add your keys in TOML format:
+```toml
+GEMINI_API_KEY="your_api_key_here"
+GITHUB_TOKEN="your_github_token_here"
+```
+
 ---
 
 ## 🧠 Architecture Flow
