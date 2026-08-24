@@ -130,6 +130,11 @@ def hitl_gate(state: AgentState):
     else:
         print("Max iterations reached. Tests are still failing.")
         
+    # If the app/CI initialized the workflow with auto-approval, bypass the prompt
+    if state.get("human_approved") is True:
+        print("Auto-approved based on initial workflow configuration.")
+        return {"human_approved": True}
+        
     print("Execution paused. Awaiting human verification.")
     
     # In a real CLI with breakpoints, the graph would pause here.
