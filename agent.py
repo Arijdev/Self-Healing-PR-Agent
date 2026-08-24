@@ -11,8 +11,21 @@ from config import GEMINI_API_KEY
 # Initialize LLM
 llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash", google_api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
-def extract_json(content: str) -> dict:
+def extract_json(content) -> dict:
     """Helper to parse JSON from LLM output, handling markdown blocks."""
+    if isinstance(content, list):
+        # Extract text from blocks if content is a list
+        text_parts = []
+        for block in content:
+            if isinstance(block, dict) and "text" in block:
+                text_parts.append(block["text"])
+            elif isinstance(block, str):
+                text_parts.append(block)
+        content = "".join(text_parts)
+    
+    if not isinstance(content, str):
+        content = str(content)
+        
     content = content.strip()
     if content.startswith("```json"):
         content = content[7:-3].strip()
