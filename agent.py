@@ -9,7 +9,7 @@ from tools import read_files, write_files, run_pytest, create_git_pr
 from config import GEMINI_API_KEY
 
 # Initialize LLM
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash", google_api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def extract_json(content: str) -> dict:
     """Helper to parse JSON from LLM output, handling markdown blocks."""
