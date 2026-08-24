@@ -1,0 +1,7 @@
+langgraph
+langchain-google-genai
+gitpython
+pytest
+pydantic
+python-dotenv
+streamlit
