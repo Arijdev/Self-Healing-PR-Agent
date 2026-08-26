@@ -5,6 +5,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      target_files:
+        description: 'Comma separated list of target files'
+        required: true
+        default: 'app.py, main.py, agent.py, tools.py'
+      task_description:
+        description: 'Task description for the agent'
+        required: true
+        default: 'Review the code for potential bugs.'
 
 jobs:
   agent-run:
@@ -32,6 +41,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_PATH: .
         run: |
-          # The agent might have a Human-In-The-Loop gate. 
-          # We pipe 'y' to automatically approve changes in headless mode.
-          echo "y" | python main.py
+          # Use workflow_dispatch inputs or fallback defaults for push events
+          FILES="${{ github.event.inputs.target_files || 'app.py, main.py, agent.py, tools.py' }}"
+          TASK="${{ github.event.inputs.task_description || 'Review the code for potential bugs and fix them.' }}"
+          
+          # Run the agent with auto-approve
+          python main.py --files "$FILES" --task "$TASK" --auto-approve
