@@ -5,3 +5,4 @@ pytest
 pydantic
 python-dotenv
 streamlit
+PyGithub
