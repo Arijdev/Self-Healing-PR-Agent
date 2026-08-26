@@ -2,7 +2,6 @@ import streamlit as st
 import time
 import json
 from agent import build_graph
-from main import setup_mock_files
 from config import TARGET_REPO_URL, GEMINI_API_KEY
 
 st.set_page_config(page_title="Self-Healing PR Agent", layout="wide", page_icon="🤖")
@@ -46,11 +45,9 @@ if not GEMINI_API_KEY:
 if "workflow_finished" not in st.session_state:
     st.session_state.workflow_finished = False
 
-def run_agent():
-    # Setup mock
-    target_files = setup_mock_files()
+def run_agent(task_description: str, target_files: list[str]):
     initial_state = {
-        "task_description": "Fix the bug in the add function where it multiplies instead of adding. Then ensure there is 100% test coverage.",
+        "task_description": task_description,
         "target_files": target_files,
         "generated_code": {},
         "test_files": {},
@@ -168,6 +165,16 @@ def run_agent():
     st.session_state.workflow_finished = True
 
 if not st.session_state.workflow_finished:
-    run_agent()
+    with st.form("agent_input_form"):
+        task_desc = st.text_area("Task Description", "Review these files for bugs, fix them, and ensure test coverage.")
+        files_input = st.text_input("Target Files (comma separated)", "src/main.py, src/utils.py")
+        submitted = st.form_submit_button("Run Agent")
+        
+    if submitted:
+        target_files = [f.strip() for f in files_input.split(",") if f.strip()]
+        if not target_files:
+            st.error("Please provide at least one target file.")
+        else:
+            run_agent(task_desc, target_files)
 else:
     st.warning("Session Completed. Refresh the page to trigger a new agent run.")
